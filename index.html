@@ -292,7 +292,7 @@ function fmtDate(ed) {
 // 원문: 페이스북 발언이면 페이스북에서 그 문장으로 찾기, 아니면 첫 기사
 function originOf(it) {
   const srcs = (it.sources || []).filter(s => /^https:\/\//.test(s.url || ""));
-  if (/페이스북/.test(it.where || "") && (it.quotes || []).length) {
+  if (/페이스북|SNS|소셜/i.test(it.where || "") && (it.quotes || []).length) {
     const q = String(it.quotes[0]).slice(0, 40);
     return { label: "페이스북 원문", url: "https://www.facebook.com/search/posts?q=" + encodeURIComponent("한동훈 " + q) };
   }
