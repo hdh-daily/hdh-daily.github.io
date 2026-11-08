@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" data-theme="light">
 <head>
 <base target="_blank">
 <meta charset="utf-8">
@@ -153,6 +153,7 @@ blockquote p::after { content: "”"; color: var(--accent); margin-left: 2px; }
 .mention q { font-family: "Noto Serif KR", serif; color: var(--muted); font-size: 0.92em; }
 .mention .go { margin-left: 0; align-self: flex-start; color: var(--muted); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tone.t-비판 { color: #F2B8B5; } }
+:root[data-theme="dark"] .tone.t-비판 { color: #F2B8B5; }
 .origin { display: flex; flex-wrap: wrap; gap: 8px; }
 .origin a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--ink); color: var(--ink); font-weight: 700; font-size: 0.88em; text-decoration: none; }
 .origin a.primary { background: var(--ink); color: var(--paper); }
@@ -189,6 +190,7 @@ details.more summary:focus-visible { outline: 2px solid var(--accent); outline-o
       <button class="btn" id="ttsBtn" type="button" aria-pressed="false">🔊 들려주기</button>
       <button class="btn" id="bigBtn" type="button" aria-pressed="false">글자 크게</button>
       <button class="btn" id="reloadBtn" type="button">↻ 새로 보기</button>
+      <button class="btn" id="themeBtn" type="button" aria-label="화면 어둡게">☾ 어둡게</button>
     </div>
   </div>
   <div class="install" id="installBox" hidden>
@@ -471,6 +473,18 @@ function setBig(on) {
 }
 setBig(store.get("hdh-big") === "1");
 
+// 밝게/어둡게: 기본은 밝게, 고른 것은 기억함(말씀 앱과 같은 방식)
+const themeBtn = $("#themeBtn");
+function setTheme(t) {
+  document.documentElement.setAttribute("data-theme", t);
+  themeBtn.textContent = t === "dark" ? "☀ 밝게" : "☾ 어둡게";
+  themeBtn.setAttribute("aria-label", t === "dark" ? "화면 밝게" : "화면 어둡게");
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", t === "dark" ? "#0D0F12" : "#1C3B6E");
+  store.set("hdh-theme", t);
+}
+themeBtn.addEventListener("click", () => setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
+setTheme(store.get("hdh-theme") === "dark" ? "dark" : "light");
+
 // 들려주기: 기기 기본 한국어 읽기 목소리(특정인 목소리 아님)
 const ttsBtn = $("#ttsBtn");
 const synth = window.speechSynthesis;
@@ -527,11 +541,33 @@ $("#reloadBtn").addEventListener("click", () => location.reload());
 // 앱으로 받기: 안드로이드는 설치 창을 바로 띄우고, 아이폰은 방법을 알려 줌
 (() => {
   const box = $("#installBox"), how = $("#installHow"), btn = $("#installBtn");
+  const ua = navigator.userAgent;
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-  if (standalone || store.get("hdh-install-closed") === "1") return;
-  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  let prompt = null;
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if (standalone) return;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const android = /Android/i.test(ua);
+  // 카카오톡, 네이버, 밴드, 인스타그램 같은 앱 안에서 열면 설치가 안 됨 → 크롬으로 보내는 버튼
+  const inApp = /KAKAOTALK|NAVER\(inapp|BAND\/|Instagram|FBAN|FBAV|Line\/|DaumApps|; wv\)/i.test(ua);
+  if (inApp) {
+    const url = location.href.split("#")[0];
+    box.hidden = false;
+    $("#installClose").addEventListener("click", () => { box.hidden = true; });
+    if (android) {
+      const chrome = /KAKAOTALK/i.test(ua)
+        ? "kakaotalk://web/openExternal?url=" + encodeURIComponent(url)
+        : "intent://" + url.replace(/^https?:\/\//, "") + "#Intent;scheme=https;package=com.android.chrome;end";
+      how.textContent = "지금 다른 앱 안에서 열려 있어 앱으로 받을 수 없어요. 아래 버튼을 눌러 크롬에서 연 뒤 ‘앱으로 받기’를 눌러 주세요.";
+      btn.textContent = "크롬에서 열기";
+      btn.addEventListener("click", () => { location.href = chrome; });
+    } else {
+      btn.hidden = true;
+      how.textContent = "지금 다른 앱 안에서 열려 있어요. 오른쪽 아래(또는 위) ⋯ 메뉴에서 ‘다른 브라우저로 열기’(사파리)를 고른 뒤, 공유 버튼 ⬆ 에서 ‘홈 화면에 추가’를 눌러 주세요.";
+    }
+    return;
+  }
+  if (store.get("hdh-install-closed") === "1") return;
+  let prompt = null;
   window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; box.hidden = false; });
   if (ios) {
     box.hidden = false; btn.hidden = true;
