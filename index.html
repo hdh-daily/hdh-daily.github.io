@@ -135,7 +135,22 @@ blockquote { margin: 0; padding: 2px 0 2px 14px; border-left: 3px solid var(--ac
 blockquote p { margin: 0; }
 blockquote p::before { content: "“"; color: var(--accent); margin-right: 2px; }
 blockquote p::after { content: "”"; color: var(--accent); margin-left: 2px; }
-.ctx { margin: 0; color: var(--muted); font-size: 0.9em; }
+.ctx { margin: 0; font-size: 0.9em; padding: 8px 12px; background: var(--accent-soft); display: flex; gap: 10px; align-items: baseline; }
+.ctx b { flex: none; font-size: 0.78em; letter-spacing: 0.08em; color: var(--accent); }
+.mentions { display: flex; flex-direction: column; }
+.mention { display: flex; flex-direction: column; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.mention:last-child { border-bottom: 0; }
+.mention-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; }
+.mention-head strong { font-size: 1.02em; }
+.mention-head small { color: var(--muted); font-size: 0.8em; }
+.tone { font-size: 0.72em; font-weight: 700; padding: 1px 7px; border: 1px solid currentColor; letter-spacing: 0.06em; }
+.tone.t-비판 { color: #B3261E; }
+.tone.t-지지 { color: var(--accent); }
+.tone.t-언급 { color: var(--muted); }
+.mention p { margin: 0; }
+.mention q { font-family: "Noto Serif KR", serif; color: var(--muted); font-size: 0.92em; }
+.mention .go { margin-left: 0; align-self: flex-start; color: var(--muted); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tone.t-비판 { color: #F2B8B5; } }
 .origin { display: flex; flex-wrap: wrap; gap: 8px; }
 .origin a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 8px 14px; border: 1px solid var(--ink); color: var(--ink); font-weight: 700; font-size: 0.88em; text-decoration: none; }
 .origin a.primary { background: var(--ink); color: var(--paper); }
@@ -357,6 +372,7 @@ function render(idx) {
     const meta = el("div", "meta");
     meta.append(el("span", "chip", "발언"), el("span", null, it.when), el("span", null, "|"), el("span", null, it.where));
     card.append(meta, el("h3", null, it.title));
+    if (it.context) { const c = el("p", "ctx"); c.append(el("b", null, "배경"), el("span", null, it.context)); card.append(c); }
     if (it.quotes.length) {
       const bq = el("blockquote");
       it.quotes.forEach(q => bq.append(el("p", null, q)));
@@ -369,7 +385,6 @@ function render(idx) {
       box.append(a, el("small", null, (v.name || "영상") + (v.note ? " | " + v.note : "")));
       card.append(box);
     });
-    if (it.context) card.append(el("p", "ctx", it.context));
     const o = originOf(it);
     if (o) {
       const box = el("div", "origin");
@@ -396,6 +411,25 @@ function render(idx) {
     sec.append(card);
   });
   main.append(sec);
+
+  // 다른 정치인이 한 의원을 두고 한 말 (기사에 나온 대로, 인용은 원문 그대로)
+  const ms = (ed.mentions || []).filter(m => m && m.who && m.what);
+  if (ms.length) {
+    const ment = el("section", "section");
+    ment.append(el("h2", null, "오늘 한동훈을 말한 사람들"));
+    const box = el("div", "mentions");
+    ms.forEach(m => {
+      const row = el("div", "mention"), head = el("div", "mention-head");
+      head.append(el("span", "tone t-" + (m.tone || "언급"), m.tone || "언급"), el("strong", null, m.who));
+      if (m.role) head.append(el("small", null, m.role));
+      row.append(head, el("p", null, m.what));
+      if (m.quote) row.append(el("q", null, m.quote));
+      if (m.source && /^https:\/\//.test(m.source.url || "")) row.append(link((m.source.name || "기사") + " 원문 ↗", m.source.url, "go"));
+      box.append(row);
+    });
+    ment.append(box);
+    main.append(ment);
+  }
 }
 
 // 응원 횟수는 이 폰에만 기억 (날짜별)
@@ -443,8 +477,10 @@ function ttsParts(ed) {
   ed.items.forEach((it, i) => {
     out.push(`${i + 1}번째 소식. ${it.when}, ${it.where}. ${it.title.replace(/[“”"]/g, "")}`);
     (it.quotes || []).forEach(q => out.push(`의원님 말씀. ${q}`));
-    if (it.context) out.push(it.context);
+    if (it.context) out.push("배경. " + it.context);
   });
+  const ms = ed.mentions || [];
+  if (ms.length) { out.push("오늘 한동훈을 말한 사람들."); ms.forEach(m => out.push(`${m.who}${m.role ? ", " + m.role : ""}. ${m.what}`)); }
   out.push("오늘 소식은 여기까지입니다. 내일도 같이 봐요.");
   return out.filter(Boolean);
 }
