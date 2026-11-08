@@ -566,20 +566,38 @@ $("#reloadBtn").addEventListener("click", () => location.reload());
     }
     return;
   }
-  if (store.get("hdh-install-closed") === "1") return;
+  const closedAt = Number(store.get("hdh-install-closed") || 0);
+  if (closedAt > 1 && Date.now() - closedAt < 7 * 864e5) return;
+  // 안드로이드인데 크롬이 아닌 브라우저(삼성 인터넷, 웨일 등)면 먼저 크롬으로 보냄. 설치 신호가 오면 바로 '앱으로 받기'로 바뀜
+  const isChrome = /Chrome\/\d/.test(ua) && !/SamsungBrowser|EdgA|OPR\/|Whale|NAVER|Firefox|YaBrowser|MiuiBrowser|HeyTap|UCBrowser/i.test(ua);
+  const toChrome = "intent://" + location.href.split("#")[0].replace(/^https?:\/\//, "") + "#Intent;scheme=https;package=com.android.chrome;end";
   let prompt = null;
-  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; box.hidden = false; });
+  const ready = () => { btn.hidden = false; btn.textContent = "앱으로 받기"; how.textContent = "한 번만 해 두면 아이콘을 눌러 바로 열려요."; };
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; box.hidden = false; ready(); });
   if (ios) {
     box.hidden = false; btn.hidden = true;
     how.textContent = "사파리 아래쪽 공유 버튼(네모에 화살표 ↑)을 누르고 ‘홈 화면에 추가’를 누르세요.";
-  } else if (/Android/.test(navigator.userAgent)) {
+  } else if (android) {
     box.hidden = false;
+    if (!isChrome) {
+      btn.textContent = "크롬에서 열기";
+      how.textContent = "앱으로 받기는 크롬에서 잘 돼요. 아래 버튼을 눌러 크롬에서 연 뒤 ‘앱으로 받기’를 눌러 주세요.";
+    }
   }
   btn.addEventListener("click", async () => {
-    if (prompt) { prompt.prompt(); await prompt.userChoice; prompt = null; box.hidden = true; return; }
-    how.textContent = "오른쪽 위 점 세 개(⋮) 메뉴를 누르고 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 누르세요.";
+    if (prompt) {
+      prompt.prompt();
+      const r = await prompt.userChoice; prompt = null;
+      if (r && r.outcome === "accepted") box.hidden = true;
+      else how.textContent = "설치를 취소하셨어요. 다시 하려면 오른쪽 위 점 세 개(⋮) 메뉴에서 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 누르세요.";
+      return;
+    }
+    if (android && !isChrome) { location.href = toChrome; return; }
+    // 크롬인데 설치 창이 안 뜨는 경우: 이미 깔려 있거나, 전에 설치 창을 닫아서 크롬이 한동안 안 띄우는 것
+    how.textContent = "① 오른쪽 위 점 세 개(⋮)를 누르세요. ② ‘홈 화면에 추가’ 또는 ‘앱 설치’를 누르세요. ③ ‘설치’를 누르세요. 메뉴에 ‘앱 열기’가 보이면 이미 깔려 있는 거예요. 바탕화면에서 ‘한동훈 데일리’ 아이콘을 찾아 주세요.";
   });
-  $("#installClose").addEventListener("click", () => { box.hidden = true; store.set("hdh-install-closed", "1"); });
+  // 닫기는 7일 동안만 숨김(예전엔 영영 숨겨져서 다시 받을 길이 없었음)
+  $("#installClose").addEventListener("click", () => { box.hidden = true; store.set("hdh-install-closed", String(Date.now())); });
   window.addEventListener("appinstalled", () => { box.hidden = true; });
 })();
 </script>
