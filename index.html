@@ -155,6 +155,10 @@ details.more summary:focus-visible { outline: 3px solid var(--accent); outline-o
 
 .foot { color: var(--muted); font-size: 0.76em; border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 4px; text-align: center; }
 .foot .hand { font-family: var(--font-hand); font-size: 1.4em; color: var(--accent); }
+.install { background: var(--card, #fff); border: 2px solid var(--accent); border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.links { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.links a { display: block; text-align: center; padding: 12px 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--card, #fff); color: inherit; text-decoration: none; font-weight: 600; }
+.links a small { display: block; font-weight: 400; color: var(--muted); font-size: 0.8em; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -165,6 +169,14 @@ details.more summary:focus-visible { outline: 3px solid var(--accent); outline-o
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" id="ttsBtn" type="button" aria-pressed="false">🔊 들려주기</button>
       <button class="btn" id="bigBtn" type="button" aria-pressed="false">글자 크게</button>
+      <button class="btn" id="reloadBtn" type="button">↻ 새로 보기</button>
+    </div>
+  </div>
+  <div class="install" id="installBox" hidden>
+    <div><b>📲 휴대폰 화면에 앱처럼 깔아 두세요</b><br><span id="installHow">한 번만 해 두면 아이콘을 눌러 바로 열려요.</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="installBtn" type="button">앱으로 받기</button>
+      <button class="btn" id="installClose" type="button">닫기</button>
     </div>
   </div>
   <div class="tts-note" id="ttsNote" hidden>휴대폰 기본 읽기 목소리로 읽어 드려요. 의원님 목소리는 카드의 ‘▶ 직접 듣기’로 들으세요.</div>
@@ -196,6 +208,16 @@ details.more summary:focus-visible { outline: 3px solid var(--accent); outline-o
   </div>
 
   <main id="edition" class="wrap" style="gap:24px"></main>
+
+  <section aria-label="더 둘러보기" style="display:flex;flex-direction:column;gap:8px">
+    <div class="label">더 둘러보기 (누르면 지금 올라온 글이 열려요)</div>
+    <nav class="links">
+      <a href="https://m.search.naver.com/search.naver?where=m_news&amp;sort=1&amp;query=%ED%95%9C%EB%8F%99%ED%9B%88" target="_blank" rel="noopener">📰 네이버 뉴스<small>방금 나온 기사부터</small></a>
+      <a href="https://m.youtube.com/results?search_query=%ED%95%9C%EB%8F%99%ED%9B%88&amp;sp=CAI%253D" target="_blank" rel="noopener">▶ 유튜브<small>새로 올라온 영상</small></a>
+      <a href="https://www.facebook.com/search/top?q=%ED%95%9C%EB%8F%99%ED%9B%88" target="_blank" rel="noopener">👍 페이스북<small>의원님 글과 반응</small></a>
+      <a href="https://m.dcinside.com/board/ppphan" target="_blank" rel="noopener">💬 한동훈 갤러리<small>디시인사이드</small></a>
+    </nav>
+  </section>
 
   <footer class="foot">
     <div class="hand">내일도 같이 봐요 ♥</div>
@@ -423,6 +445,32 @@ bigBtn.addEventListener("click", () => {
   setBig(on);
   store.set("hdh-big", on ? "1" : "0");
 });
+
+// 새로 보기: 앱으로 깔면 당겨서 새로고침이 안 되는 폰이 있어서 버튼으로 둠(새 소식은 매일 밤 9-11시에 올라옴)
+$("#reloadBtn").addEventListener("click", () => location.reload());
+
+// 앱으로 받기: 안드로이드는 설치 창을 바로 띄우고, 아이폰은 방법을 알려 줌
+(() => {
+  const box = $("#installBox"), how = $("#installHow"), btn = $("#installBtn");
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  if (standalone || store.get("hdh-install-closed") === "1") return;
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  let prompt = null;
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; box.hidden = false; });
+  if (ios) {
+    box.hidden = false; btn.hidden = true;
+    how.textContent = "사파리 아래쪽 공유 버튼(네모에 화살표 ↑)을 누르고 ‘홈 화면에 추가’를 누르세요.";
+  } else if (/Android/.test(navigator.userAgent)) {
+    box.hidden = false;
+  }
+  btn.addEventListener("click", async () => {
+    if (prompt) { prompt.prompt(); await prompt.userChoice; prompt = null; box.hidden = true; return; }
+    how.textContent = "오른쪽 위 점 세 개(⋮) 메뉴를 누르고 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 누르세요.";
+  });
+  $("#installClose").addEventListener("click", () => { box.hidden = true; store.set("hdh-install-closed", "1"); });
+  window.addEventListener("appinstalled", () => { box.hidden = true; });
+})();
 </script>
 
 </body>
