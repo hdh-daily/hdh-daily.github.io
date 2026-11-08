@@ -166,7 +166,6 @@ details.more summary:focus-visible { outline: 2px solid var(--accent); outline-o
 .react-row { display: flex; flex-direction: column; gap: 2px; padding-left: 12px; border-left: 2px solid var(--line); }
 .react-who { font-size: 0.8em; font-weight: 700; color: var(--react); }
 .react-what { font-size: 0.92em; }
-.tts-note { font-size: 0.78em; color: var(--muted); background: var(--paper); border: 1px solid var(--line); padding: 8px 12px; margin-top: -10px; }
 .listen { display: flex; flex-direction: column; gap: 6px; }
 .listen a { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; min-height: 44px; padding: 8px 16px; background: var(--accent); color: var(--accent-ink); font-weight: 700; text-decoration: none; }
 .listen small { color: var(--muted); font-size: 0.78em; }
@@ -187,7 +186,6 @@ details.more summary:focus-visible { outline: 2px solid var(--accent); outline-o
   <div class="topbar">
     <div class="club">한동훈 데일리 <small>DAILY</small></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="ttsBtn" type="button" aria-pressed="false">🔊 들려주기</button>
       <button class="btn" id="bigBtn" type="button" aria-pressed="false">글자 크게</button>
       <button class="btn" id="reloadBtn" type="button">↻ 새로 보기</button>
       <button class="btn" id="themeBtn" type="button" aria-label="화면 어둡게">☾ 어둡게</button>
@@ -200,7 +198,6 @@ details.more summary:focus-visible { outline: 2px solid var(--accent); outline-o
       <button class="btn" id="installClose" type="button">닫기</button>
     </div>
   </div>
-  <div class="tts-note" id="ttsNote" hidden>휴대폰 기본 읽기 목소리로 읽어 드려요. 의원님 목소리는 카드의 ‘▶ 직접 듣기’로 들으세요.</div>
 
   <section class="hero" aria-label="오늘의 한동훈">
     <div class="photo-wrap">
@@ -485,50 +482,6 @@ function setTheme(t) {
 themeBtn.addEventListener("click", () => setTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark"));
 setTheme(store.get("hdh-theme") === "dark" ? "dark" : "light");
 
-// 들려주기: 기기 기본 한국어 읽기 목소리(특정인 목소리 아님)
-const ttsBtn = $("#ttsBtn");
-const synth = window.speechSynthesis;
-if (!synth) { ttsBtn.hidden = true; }
-function pickVoice() {
-  const vs = synth.getVoices().filter(v => (v.lang || "").toLowerCase().startsWith("ko"));
-  return vs.find(v => /google|female|yuna|heami|sunhi/i.test(v.name)) || vs[0] || null;
-}
-function ttsParts(ed) {
-  const out = [`${fmtDate(ed)} 한동훈 데일리입니다.`];
-  if (ed.hero && ed.hero.quote) out.push(`오늘의 한마디. ${ed.hero.quote}. ${ed.hero.when || ""}`);
-  if (ed.summary.length) { out.push("오늘 한눈에."); ed.summary.forEach(s => out.push(s)); }
-  if (ed.schedule.length) { out.push("오늘 일정."); ed.schedule.forEach(s => out.push(`${s.time}, ${s.what}`)); }
-  ed.items.forEach((it, i) => {
-    out.push(`${i + 1}번째 소식. ${it.when}, ${it.where}. ${it.title.replace(/[“”"]/g, "")}`);
-    (it.quotes || []).forEach(q => out.push(`의원님 말씀. ${q}`));
-    if (it.context) out.push("배경. " + it.context);
-  });
-  const ms = ed.mentions || [];
-  if (ms.length) { out.push("오늘 한동훈을 말한 사람들."); ms.forEach(m => out.push(`${m.who}${m.role ? ", " + m.role : ""}. ${m.what}`)); }
-  out.push("오늘 소식은 여기까지입니다. 내일도 같이 봐요.");
-  return out.filter(Boolean);
-}
-function stopTts() {
-  synth.cancel();
-  ttsBtn.setAttribute("aria-pressed", "false"); ttsBtn.textContent = "🔊 들려주기";
-  $("#ttsNote").hidden = true;
-}
-ttsBtn.addEventListener("click", () => {
-  if (ttsBtn.getAttribute("aria-pressed") === "true") { stopTts(); return; }
-  synth.cancel();
-  const voice = pickVoice();
-  const parts = ttsParts(EDITIONS[current]);
-  parts.forEach((t, i) => {
-    const u = new SpeechSynthesisUtterance(t);
-    u.lang = "ko-KR"; u.rate = 0.9; if (voice) u.voice = voice;
-    if (i === parts.length - 1) u.onend = stopTts;
-    synth.speak(u);
-  });
-  ttsBtn.setAttribute("aria-pressed", "true"); ttsBtn.textContent = "■ 그만 듣기";
-  $("#ttsNote").hidden = false;
-});
-if (synth) synth.onvoiceschanged = () => {};
-sel.addEventListener("change", () => { if (synth) stopTts(); });
 bigBtn.addEventListener("click", () => {
   const on = !document.documentElement.classList.contains("big");
   setBig(on);
@@ -585,6 +538,11 @@ $("#reloadBtn").addEventListener("click", () => location.reload());
     }
   }
   btn.addEventListener("click", async () => {
+    // 페이지가 막 열렸을 땐 크롬 설치 신호가 조금 늦게 옴 → 3초까지 기다려 봄
+    if (!prompt && isChrome) {
+      how.textContent = "잠시만요, 설치 창을 부르는 중이에요…";
+      for (let i = 0; i < 15 && !prompt; i++) await new Promise(r => setTimeout(r, 200));
+    }
     if (prompt) {
       prompt.prompt();
       const r = await prompt.userChoice; prompt = null;
