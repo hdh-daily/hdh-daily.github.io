@@ -137,6 +137,8 @@ blockquote p::before { content: "“"; color: var(--accent); margin-right: 2px; 
 blockquote p::after { content: "”"; color: var(--accent); margin-left: 2px; }
 .ctx { margin: 0; font-size: 0.9em; padding: 8px 12px; background: var(--accent-soft); display: flex; gap: 10px; align-items: baseline; }
 .ctx b { flex: none; font-size: 0.78em; letter-spacing: 0.08em; color: var(--accent); }
+.live { font-size: 0.78em; font-weight: 700; color: var(--accent); white-space: nowrap; }
+.live.done { color: var(--muted); }
 .mentions { display: flex; flex-direction: column; }
 .mention { display: flex; flex-direction: column; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .mention:last-child { border-bottom: 0; }
@@ -322,6 +324,14 @@ function render(idx) {
   if (!ed) { $("#edition").append(el("div", "none", "아직 올라온 소식이 없어요.")); return; }
   ed.items = ed.items || []; ed.summary = ed.summary || []; ed.schedule = ed.schedule || [];
   $("#dateText").textContent = fmtDate(ed);
+  // 오늘 호는 낮 동안 30분마다 고쳐짐: 몇 시 기준인지 표시, 지난 호나 밤 11시 판은 "하루 정리"
+  const kst = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  if (ed.updated && ed.date === kst && ed.updated < "23:00") {
+    const [hh, mm] = ed.updated.split(":").map(Number);
+    $("#dateText").append(el("small", "live", ` | ${hh < 12 ? "오전" : "오후"} ${hh % 12 || 12}:${String(mm).padStart(2, "0")} 기준, 계속 업데이트 중`));
+  } else if (ed.updated || ed.date < kst) {
+    $("#dateText").append(el("small", "live done", " | 하루 정리"));
+  }
   setPhoto(ed, idx);
   const hero = ed.hero || {};
   $("#heroQuote").textContent = hero.quote || "오늘은 보도된 발언이 없어요. 내일 또 만나요!";
