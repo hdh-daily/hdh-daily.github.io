@@ -179,6 +179,21 @@ details.more summary:focus-visible { outline: 2px solid var(--accent); outline-o
 .links a { display: block; text-align: left; padding: 14px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--paper); color: var(--ink); text-decoration: none; font-weight: 700; }
 .links a small { display: block; font-weight: 400; color: var(--muted); font-size: 0.78em; margin-top: 2px; }
 </style>
+<script>
+window.dataLayer = window.dataLayer || []; window.__ga = [];
+function gtag(){ dataLayer.push(arguments); window.__ga.push([].slice.call(arguments)); }
+if (location.hostname === 'hdh-daily.github.io') {
+  gtag('js', new Date());
+  gtag('config', 'G-V8BVDJS1PR', { allow_google_signals: false, allow_ad_personalization_signals: false });
+  var gs = document.createElement('script'); gs.async = true; gs.src = 'https://www.googletagmanager.com/gtag/js?id=G-V8BVDJS1PR'; document.head.appendChild(gs);
+}
+// 링크 누름: 직접 듣기, 원문, 더 둘러보기
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[href]'); if (!a || a.host === location.host) return;
+  var t = (a.textContent || '').trim(), k = /직접 듣기/.test(t) ? 'video' : /원문/.test(t) ? 'source' : a.closest('[aria-label="더 둘러보기"]') ? 'browse' : 'other';
+  gtag('event', 'link_click', { kind: k, label: t.slice(0, 40), link_domain: a.hostname });
+}, true);
+</script>
 </head>
 <body>
 
@@ -241,6 +256,7 @@ details.more summary:focus-visible { outline: 2px solid var(--accent); outline-o
     <div class="hand">내일 또 만나요</div>
     <div>발언은 기사에 실린 문장 그대로 옮겼고, 카드마다 출처를 달았습니다.</div>
     <div>한동훈 의원실과 관계없습니다.</div>
+    <div>방문 통계를 위해 Google Analytics를 씁니다. 이름이나 연락처는 모으지 않습니다.</div>
   </footer>
 </div>
 
@@ -320,6 +336,7 @@ let current = 0;
 function render(idx) {
   current = idx;
   const ed = EDITIONS[idx];
+  if (ed) { try { gtag('event', 'edition_view', { edition: ed.date || '', nth: idx }); } catch (e) {} }
   if (!ed) { $("#edition").append(el("div", "none", "아직 올라온 소식이 없어요.")); return; }
   ed.items = ed.items || []; ed.summary = ed.summary || []; ed.schedule = ed.schedule || [];
   $("#dateText").textContent = fmtDate(ed);
