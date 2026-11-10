@@ -203,6 +203,7 @@ document.addEventListener('click', function (e) {
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" id="bigBtn" type="button" aria-pressed="false">글자 크게</button>
       <button class="btn" id="reloadBtn" type="button">↻ 새로 보기</button>
+<button class="btn" id="shareBtn" type="button">↗ 공유하기</button>
       <button class="btn" id="themeBtn" type="button" aria-label="화면 어둡게">☾ 어둡게</button>
     </div>
   </div>
@@ -508,13 +509,26 @@ bigBtn.addEventListener("click", () => {
 // 새로 보기: 앱으로 깔면 당겨서 새로고침이 안 되는 폰이 있어서 버튼으로 둠(새 소식은 매일 밤 9-11시에 올라옴)
 $("#reloadBtn").addEventListener("click", () => location.reload());
 
+// 공유하기: 폰 공유 창(카톡, 문자, 밴드 등)을 띄움. 공유 창이 없는 브라우저면 주소를 복사
+$("#shareBtn").addEventListener("click", async () => {
+  const url = "https://hdh-daily.github.io/";
+  const data = { title: "한동훈 데일리", text: "오늘의 한동훈 소식 모아 보기", url };
+  try { gtag('event', 'share_click', {}); } catch (e) {}
+  if (navigator.share) { try { await navigator.share(data); } catch (e) {} return; }
+  const b = $("#shareBtn"), old = b.textContent;
+  try { await navigator.clipboard.writeText(url); b.textContent = "✓ 주소 복사됨"; }
+  catch (e) { prompt("이 주소를 길게 눌러 복사하세요", url); return; }
+  setTimeout(() => { b.textContent = old; }, 2500);
+});
+
 // 앱으로 받기: 안드로이드는 설치 창을 바로 띄우고, 아이폰은 방법을 알려 줌
 (() => {
   const box = $("#installBox"), how = $("#installHow"), btn = $("#installBtn");
   const ua = navigator.userAgent;
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
-  if (standalone) return;
+  // 앱으로 열렸으면 '깔았음'을 기억해 둠(안드로이드는 크롬과 앱이 저장소를 같이 써서, 크롬으로 열어도 안내가 안 뜸)
+  if (standalone) { store.set("hdh-installed", "1"); return; }
   const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const android = /Android/i.test(ua);
   // 카카오톡, 네이버, 밴드, 인스타그램 같은 앱 안에서 열면 설치가 안 됨 → 크롬으로 보내는 버튼
@@ -536,6 +550,7 @@ $("#reloadBtn").addEventListener("click", () => location.reload());
     }
     return;
   }
+  if (store.get("hdh-installed") === "1") return;
   const closedAt = Number(store.get("hdh-install-closed") || 0);
   if (closedAt > 1 && Date.now() - closedAt < 7 * 864e5) return;
   // 안드로이드인데 크롬이 아닌 브라우저(삼성 인터넷, 웨일 등)면 먼저 크롬으로 보냄. 설치 신호가 오면 바로 '앱으로 받기'로 바뀜
@@ -548,10 +563,23 @@ $("#reloadBtn").addEventListener("click", () => location.reload());
     box.hidden = false; btn.hidden = true;
     how.textContent = "사파리 아래쪽 공유 버튼(네모에 화살표 ↑)을 누르고 ‘홈 화면에 추가’를 누르세요.";
   } else if (android) {
-    box.hidden = false;
     if (!isChrome) {
+      box.hidden = false;
       btn.textContent = "크롬에서 열기";
       how.textContent = "앱으로 받기는 크롬에서 잘 돼요. 아래 버튼을 눌러 크롬에서 연 뒤 ‘앱으로 받기’를 눌러 주세요.";
+    } else {
+      // 크롬은 이미 깔려 있으면 설치 신호를 안 보냄 → 바로 띄우지 않고 4초 기다린 뒤,
+      // 설치 신호도 없고 깔린 앱도 안 보일 때만 안내를 띄움
+      setTimeout(async () => {
+        if (prompt || !box.hidden) return;
+        try {
+          if (navigator.getInstalledRelatedApps) {
+            const apps = await navigator.getInstalledRelatedApps();
+            if (apps && apps.length) { store.set("hdh-installed", "1"); return; }
+          }
+        } catch (e) {}
+        if (!prompt) box.hidden = false;
+      }, 4000);
     }
   }
   btn.addEventListener("click", async () => {
@@ -573,7 +601,7 @@ $("#reloadBtn").addEventListener("click", () => location.reload());
   });
   // 닫기는 7일 동안만 숨김(예전엔 영영 숨겨져서 다시 받을 길이 없었음)
   $("#installClose").addEventListener("click", () => { box.hidden = true; store.set("hdh-install-closed", String(Date.now())); });
-  window.addEventListener("appinstalled", () => { box.hidden = true; });
+  window.addEventListener("appinstalled", () => { box.hidden = true; store.set("hdh-installed", "1"); });
 })();
 </script>
 
