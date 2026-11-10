@@ -7,6 +7,13 @@
  "display": "standalone",
  "background_color": "#F4F4F1",
  "theme_color": "#1C3B6E",
+ "id": "./",
+ "related_applications": [
+  {
+   "platform": "webapp",
+   "url": "https://hdh-daily.github.io/manifest.webmanifest"
+  }
+ ],
  "icons": [
   {
    "src": "icon-192.png",
