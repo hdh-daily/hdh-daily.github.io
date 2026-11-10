@@ -508,7 +508,8 @@ bigBtn.addEventListener("click", () => {
 });
 
 // 새로 보기: 앱으로 깔면 당겨서 새로고침이 안 되는 폰이 있어서 버튼으로 둠(새 소식은 매일 밤 9-11시에 올라옴)
-$("#reloadBtn").addEventListener("click", () => location.reload());
+// 11/10: 주소 뒤에 시각을 붙여 폰에 남은 옛 화면을 건너뜀
+$("#reloadBtn").addEventListener("click", () => { location.replace(location.pathname + "?v=" + Date.now()); });
 
 // 공유하기: 폰 공유 창(카톡, 문자, 밴드 등)을 띄움. 공유 창이 없는 브라우저면 주소를 복사
 $("#shareBtn").addEventListener("click", async () => {
@@ -527,7 +528,7 @@ $("#shareBtn").addEventListener("click", async () => {
   const box = $("#installBox"), how = $("#installHow"), btn = $("#installBtn");
   const ua = navigator.userAgent;
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).catch(() => {});
   // 앱으로 열렸으면 '깔았음'을 기억해 둠(안드로이드는 크롬과 앱이 저장소를 같이 써서, 크롬으로 열어도 안내가 안 뜸)
   if (standalone) { store.set("hdh-installed", "1"); return; }
   const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
