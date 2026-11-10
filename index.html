@@ -257,7 +257,7 @@ document.addEventListener('click', function (e) {
     <nav class="links">
       <a href="https://m.search.naver.com/search.naver?where=m_news&amp;sort=1&amp;query=%ED%95%9C%EB%8F%99%ED%9B%88" target="_blank" rel="noopener">네이버 뉴스<small>방금 나온 기사부터</small></a>
       <a href="https://m.youtube.com/results?search_query=%ED%95%9C%EB%8F%99%ED%9B%88&amp;sp=CAI%253D" target="_blank" rel="noopener">유튜브<small>새로 올라온 영상</small></a>
-      <a href="https://www.facebook.com/search/top?q=%ED%95%9C%EB%8F%99%ED%9B%88" target="_blank" rel="noopener">페이스북<small>의원님 글과 반응</small></a>
+      <a href="https://www.facebook.com/dh.han.3" target="_blank" rel="noopener">페이스북<small>의원님 글과 반응</small></a>
       <a href="https://m.dcinside.com/board/ppphan" target="_blank" rel="noopener">한동훈 갤러리<small>디시인사이드</small></a>
     </nav>
   </section>
@@ -331,12 +331,13 @@ function fmtDate(ed) {
   return `${y}년 ${m}월 ${d}일 (${ed.weekday})`;
 }
 
-// 원문: 페이스북 발언이면 페이스북에서 그 문장으로 찾기, 아니면 첫 기사
+// 원문: 페이스북 발언이면 의원 페이스북 프로필(맨 위에 최근 글), 아니면 첫 기사
+// 11/10: 검색 대신 프로필로. 주소는 국회도서관 의원 정책자료 페이지(G1900020)에 실린 계정
+const HDH_FB = "https://www.facebook.com/dh.han.3";
 function originOf(it) {
   const srcs = (it.sources || []).filter(s => /^https:\/\//.test(s.url || ""));
   if (/페이스북|SNS|소셜/i.test(it.where || "") && (it.quotes || []).length) {
-    const q = String(it.quotes[0]).slice(0, 40);
-    return { label: "페이스북 원문", url: "https://www.facebook.com/search/posts?q=" + encodeURIComponent("한동훈 " + q) };
+    return { label: "페이스북 원문", url: HDH_FB };
   }
   return srcs.length ? { label: "기사 원문", url: srcs[0].url } : null;
 }
