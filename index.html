@@ -176,9 +176,13 @@ details.more summary:focus-visible { outline: 2px solid var(--accent); outline-o
 .foot .hand { font-weight: 900; font-size: 1.25em; color: var(--ink); }
 [hidden] { display: none !important; }
 /* 11/10: 공유하기는 맨 위 한 줄을 꽉 채운 큰 버튼(많이 공유하게) */
-.sharebig { display: block; width: 100%; margin: 12px 0 0; padding: 15px 12px; font: inherit; font-size: 1.08em; font-weight: 800; color: var(--accent-ink); background: var(--accent); border: 0; border-radius: 0; cursor: pointer; letter-spacing: -.01em; }
+/* 11/10 v2: 맨 위 3개는 꽉 찬 3칸, 공유하기는 같은 글씨, 같은 크기로 한 줄 꽉 채움(색만 남색), 촘촘하게 */
+.topbar { flex-direction: column; align-items: stretch; gap: 6px; padding-bottom: 8px; }
+.tb3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.tb3 .btn, .sharebig { width: 100%; text-align: center; padding: 6px 4px; min-height: 38px; white-space: nowrap; }
+.sharebig { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 .sharebig:active { opacity: .85; }
-.sharebig:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; } /* 11/10: .install의 display:flex가 hidden을 덮어써서 닫기를 눌러도 안 사라지던 문제 */
+.topbar { margin-bottom: -10px; } /* 아래 첫 칸과 간격 22px → 12px */ /* 11/10: .install의 display:flex가 hidden을 덮어써서 닫기를 눌러도 안 사라지던 문제 */
 .install { background: var(--paper); border: 1px solid var(--ink); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .links a { display: block; text-align: left; padding: 14px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--paper); color: var(--ink); text-decoration: none; font-weight: 700; }
@@ -205,13 +209,13 @@ document.addEventListener('click', function (e) {
 <div class="wrap">
   <div class="topbar">
     <div class="club">한동훈 데일리 <small>DAILY</small></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <div class="tb3">
       <button class="btn" id="bigBtn" type="button" aria-pressed="false">글자 크게</button>
       <button class="btn" id="reloadBtn" type="button">↻ 새로 보기</button>
       <button class="btn" id="themeBtn" type="button" aria-label="화면 어둡게">☾ 어둡게</button>
     </div>
+    <button class="btn sharebig" id="shareBtn" type="button">↗ 오늘 소식 공유하기</button>
   </div>
-  <button class="sharebig" id="shareBtn" type="button">↗ 오늘 소식 친구에게 공유하기</button>
   <div class="install" id="installBox" hidden>
     <div><b>📲 휴대폰 화면에 앱처럼 깔아 두세요</b><br><span id="installHow">한 번만 해 두면 아이콘을 눌러 바로 열려요.</span></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
