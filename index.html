@@ -174,6 +174,7 @@ details.more summary:focus-visible { outline: 2px solid var(--accent); outline-o
 
 .foot { color: var(--muted); font-size: 0.74em; border-top: 2px solid var(--rule); padding-top: 14px; display: flex; flex-direction: column; gap: 4px; text-align: center; }
 .foot .hand { font-weight: 900; font-size: 1.25em; color: var(--ink); }
+[hidden] { display: none !important; } /* 11/10: .install의 display:flex가 hidden을 덮어써서 닫기를 눌러도 안 사라지던 문제 */
 .install { background: var(--paper); border: 1px solid var(--ink); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
 .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
 .links a { display: block; text-align: left; padding: 14px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--paper); color: var(--ink); text-decoration: none; font-weight: 700; }
@@ -597,6 +598,8 @@ $("#shareBtn").addEventListener("click", async () => {
     }
     if (android && !isChrome) { location.href = toChrome; return; }
     // 크롬인데 설치 창이 안 뜨는 경우: 이미 깔려 있거나, 전에 설치 창을 닫아서 크롬이 한동안 안 띄우는 것
+    // 앱을 막 지운 직후엔 크롬이 한동안 설치 신호를 안 보냄 → 메뉴로 설치하는 법을 크게 보여 줌
+    how.style.fontWeight = "700";
     how.textContent = "① 오른쪽 위 점 세 개(⋮)를 누르세요. ② ‘홈 화면에 추가’ 또는 ‘앱 설치’를 누르세요. ③ ‘설치’를 누르세요. 메뉴에 ‘앱 열기’가 보이면 이미 깔려 있는 거예요. 바탕화면에서 ‘한동훈 데일리’ 아이콘을 찾아 주세요.";
   });
   // 닫기는 7일 동안만 숨김(예전엔 영영 숨겨져서 다시 받을 길이 없었음)
