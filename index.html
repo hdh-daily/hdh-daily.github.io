@@ -239,7 +239,7 @@ document.addEventListener('click', function (e) {
       <div class="when" id="heroWhen"></div>
     </div>
     <div class="cheer-row">
-      <button class="cheer" id="cheerBtn" type="button">응원 보내기</button>
+      <button class="cheer" id="cheerBtn" type="button">응원하기</button>
       <span class="cheer-count" id="cheerCount"></span>
     </div>
     <div class="credit" id="photoCredit">사진: 국민의힘TV, <a href="https://commons.wikimedia.org/wiki/File:Han_Dong-hoon_20240901.jpg" target="_blank" rel="noopener">위키미디어 공용</a>, CC BY 3.0</div>
@@ -469,16 +469,43 @@ function render(idx) {
   }
 }
 
-// 응원 횟수는 이 폰에만 기억 (날짜별)
-function cheerKey() { return "hdh-cheer-" + (EDITIONS[current] ? EDITIONS[current].date : "none"); }
+// 11/11 응원은 모든 사람 것을 합쳐 셈(Apps Script cheer_). 폰 한 대당 호마다 한 번만 더함,
+// 그 뒤로 눌러도 하트만 뜨고 숫자는 그대로. 전달되는 게 아니라 "함께 응원한 사람 수".
+const CHEER_API = "https://script.google.com/macros/s/AKfycbyPKU4NlxtwGyZAHou7eYekM1_YPFj0n5FeHuJs-MHLip4k9AtvPtB6f1PI9qCd5can6g/exec";
+const cheeredMem = {};
+const cheerCounts = {};
+function cheerDate() { return EDITIONS[current] ? EDITIONS[current].date : ""; }
+function cheered(d) { return cheeredMem[d] || store.get("hdh-cheered-" + d) === "1"; }
+function cheerWord(d) {
+  const t = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+  return d === t ? "오늘" : "이날";
+}
+function paintCheer() {
+  const d = cheerDate(), mine = cheered(d);
+  const n = cheerCounts[d] == null ? null : Math.max(cheerCounts[d], mine ? 1 : 0);
+  $("#cheerBtn").textContent = mine ? "응원했어요" : "응원하기";
+  $("#cheerCount").textContent = n == null ? "" : n > 0 ? `${cheerWord(d)} ${n.toLocaleString("ko-KR")}명이 함께 응원했어요` : "첫 번째로 응원해 주세요";
+}
+function cheerCall(mode, d) {
+  return fetch(`${CHEER_API}?cheer=${mode}&d=${d}`).then(r => r.json()).then(j => {
+    if (j && j.ok && typeof j.n === "number") { cheerCounts[d] = Math.max(j.n, cheerCounts[d] || 0); if (d === cheerDate()) paintCheer(); }
+  }).catch(() => {});
+}
 function showCheer() {
-  const n = parseInt(store.get(cheerKey()) || "0", 10);
-  $("#cheerCount").textContent = n ? `오늘 ${n}번 응원했어요` : "";
+  paintCheer();
+  const d = cheerDate();
+  if (d) cheerCall("get", d);
 }
 $("#cheerBtn").addEventListener("click", (e) => {
-  const n = parseInt(store.get(cheerKey()) || "0", 10) + 1;
-  store.set(cheerKey(), String(n));
-  showCheer();
+  const d = cheerDate();
+  if (d && !cheered(d)) {
+    cheeredMem[d] = true;
+    store.set("hdh-cheered-" + d, "1");
+    if (cheerCounts[d] != null) cheerCounts[d] += 1;
+    paintCheer();
+    cheerCall("add", d);
+    try { gtag('event', 'cheer_click', { edition: d }); } catch (err) {}
+  }
   const h = el("span", "heart", "♥");
   h.style.setProperty("--dx", (Math.random() * 60 - 30).toFixed(0) + "px");
   e.currentTarget.append(h);
