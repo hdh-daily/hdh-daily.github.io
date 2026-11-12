@@ -415,7 +415,11 @@ function render(idx) {
   $("#dateText").textContent = fmtDate(ed);
   // 오늘 호는 낮 동안 30분마다 고쳐짐: 몇 시 기준인지 표시, 지난 호나 밤 11시 판은 "하루 정리"
   const kst = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
-  if (ed.updated && ed.date === kst && ed.updated < "23:00") {
+  // 11/12: 아침 첫 실행부터 오늘 호가 올라가므로, 낮에 아직 발언이 없으면 "아직"으로 보여 줌("내일 또 만나요"는 하루 정리 뒤에만)
+  const live = !!(ed.updated && ed.date === kst && ed.updated < "23:00");
+  const none = live ? "아직 보도된 발언이 없어요. 새 소식이 나오면 바로 올려 드릴게요." : "오늘은 보도된 발언이 없어요.";
+  if (live && !ed.items.length) ed.summary = ["아직 보도된 발언이 없어요."];
+  if (live) {
     const [hh, mm] = ed.updated.split(":").map(Number);
     $("#dateText").append(el("small", "live", ` | ${hh < 12 ? "오전" : "오후"} ${hh % 12 || 12}:${String(mm).padStart(2, "0")} 기준, 계속 업데이트 중`));
   } else if (ed.updated || ed.date < kst) {
@@ -423,7 +427,7 @@ function render(idx) {
   }
   setPhoto(ed, idx);
   const hero = ed.hero || {};
-  $("#heroQuote").textContent = hero.quote || "오늘은 보도된 발언이 없어요. 내일 또 만나요!";
+  $("#heroQuote").textContent = hero.quote || (live ? none : "오늘은 보도된 발언이 없어요. 내일 또 만나요!");
   $("#heroQuote").style.quotes = hero.quote ? "" : "none";
   $("#heroWhen").textContent = hero.when || "";
   const hit = hero.quote && ed.items.find(it => (it.quotes || []).indexOf(hero.quote) > -1);
@@ -464,7 +468,7 @@ function render(idx) {
 
   const sec = el("section", "section");
   sec.append(el("h2", null, "오늘 하신 말씀"));
-  if (!ed.items.length) sec.append(el("div", "none", "오늘은 보도된 발언이 없어요."));
+  if (!ed.items.length) sec.append(el("div", "none", none));
   ed.items.forEach(it => {
     it.quotes = it.quotes || []; it.sources = it.sources || [];
     const card = el("article", "item");
