@@ -366,7 +366,8 @@ function setPhoto(ed, idx) {
   const wrap = heroImg.parentNode;
   const setWide = (on) => { wrap.classList.toggle('wide', on); heroImg.style.objectPosition = on ? '' : (ph.focus || '50% 25%'); };
   heroImg.onerror = function () { setDefaultPhoto(); };
-  setWide(false);
+  // 11/12: 영상 화면은 얼굴 위치(focus)를 아는 경우만 3:4로 자르고, 모르거나 남의 얼굴이 걸리면(wide) 16:9 전체로
+  setWide(!!yt && (!!ph.wide || !ph.focus));
   heroImg.src = url;
   document.getElementById('photoCap').textContent = [ph.when, ph.where ? ph.where + '에서' : ''].filter(Boolean).join(', ');
   document.getElementById('photoCredit').innerHTML = '사진: <a href="' + esc(link) + '" target="_blank" rel="noopener">' + esc(ph.credit || '출처') + '</a>' + (yt ? ' 영상 화면' : '');
