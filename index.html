@@ -444,20 +444,19 @@ function render(idx) {
   brief.append(ul);
   main.append(brief);
 
-  const sch = el("section", "section");
-  sch.append(el("h2", null, "오늘 일정"));
-  const list = el("div", "sched");
-  if (ed.schedule.length) {
+  // 11/13 사용자: 일정은 거의 안 잡혀 빈 칸만 보임 → 보도된 일정이 있는 날만 칸을 보여 줌
+  if ((ed.schedule || []).length) {
+    const sch = el("section", "section");
+    sch.append(el("h2", null, "오늘 일정"));
+    const list = el("div", "sched");
     ed.schedule.forEach(s => {
       const r = el("div", "sched-row");
       r.append(el("div", "sched-time", s.time), el("div", null, s.what));
       list.append(r);
     });
-  } else {
-    list.append(el("div", "none", ed.scheduleNote || "보도된 공개 일정이 없어요."));
+    sch.append(list);
+    main.append(sch);
   }
-  sch.append(list);
-  main.append(sch);
 
   const sec = el("section", "section");
   sec.append(el("h2", null, "오늘 하신 말씀"));
