@@ -221,6 +221,25 @@ details.more summary { min-height: 48px; font-size: 0.9em; }
 @media (prefers-reduced-motion: no-preference) {
   body, .item, .brief, .hero, .btn { transition: background-color .3s ease, color .3s ease, border-color .3s ease; }
 }
+/* 11/13 맨 위 앱 설치 띠: 남색 그러데이션, 아이콘, 흰 단추. 글자 크게와 상관없이 같은 크기(px) */
+.appbar { margin: -16px calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 14px calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  padding: 14px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px));
+  background: linear-gradient(112deg, #0E1F3D 0%, #1C3B6E 50%, #2E5E9E 100%); color: #FFFFFF;
+  font-family: var(--font-body); font-size: 15px; line-height: 1.35; }
+.appbar[hidden] { display: none !important; }
+.ab-row { max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.ab-ic { width: 48px; height: 48px; border-radius: 12px; flex: none; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.ab-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ab-tx b { font-size: 17px; font-weight: 900; letter-spacing: -.01em; }
+.ab-tx span { font-size: 13.5px; opacity: .88; }
+.ab-go, .ab-x { flex: none; border: 0; border-radius: 999px; font: inherit; font-weight: 700; cursor: pointer; min-height: 44px; white-space: nowrap; }
+.ab-go { background: #FFFFFF; color: #1C3B6E; font-size: 15px; padding: 0 16px; }
+.ab-x { background: rgba(255,255,255,.18); color: #FFFFFF; font-size: 14px; padding: 0 13px; }
+.ab-go:active, .ab-x:active { transform: scale(.96); }
+.ab-help { max-width: 640px; margin: 10px auto 0; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.12); font-size: 15px; line-height: 1.55; }
+.ab-help[hidden] { display: none; }
+@media (max-width: 350px) { .ab-ic { width: 40px; height: 40px; } .ab-tx span { display: none; } }
+@media (prefers-reduced-motion: no-preference) { .appbar { animation: abIn .35s ease-out; } @keyframes abIn { from { opacity: 0; transform: translateY(-12px); } } }
 </style>
 <script>
 window.dataLayer = window.dataLayer || []; window.__ga = [];
@@ -240,6 +259,17 @@ document.addEventListener('click', function (e) {
 </head>
 <body>
 
+<!-- 11/13 맨 위 앱 설치 띠(설치 안 한 폰에만) -->
+<div class="appbar" id="installBox" hidden role="region" aria-label="앱 설치">
+  <div class="ab-row">
+    <img class="ab-ic" src="icon-192.png" alt="" width="48" height="48">
+    <div class="ab-tx"><b>한동훈 데일리</b><span id="installSub">오늘 소식 바로 보기</span></div>
+    <button type="button" class="ab-go" id="installBtn">앱으로 받기</button>
+    <button type="button" class="ab-x" id="installClose">닫기</button>
+  </div>
+  <p class="ab-help" id="installHow" hidden></p>
+</div>
+
 <div class="wrap">
   <div class="topbar">
     <div class="club">한동훈 데일리</div>
@@ -250,13 +280,6 @@ document.addEventListener('click', function (e) {
       <button class="btn" id="themeBtn" type="button" aria-label="화면 어둡게">☾ 어둡게</button>
     </div>
     <button class="btn sharebig" id="shareBtn" type="button">↗ 오늘 소식 공유하기</button>
-  </div>
-  <div class="install" id="installBox" hidden>
-    <div><b>📲 휴대폰 화면에 앱처럼 깔아 두세요</b><br><span id="installHow">한 번만 해 두면 아이콘을 눌러 바로 열려요.</span></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" id="installBtn" type="button">앱으로 받기</button>
-      <button class="btn" id="installClose" type="button">닫기</button>
-    </div>
   </div>
 
   <section class="hero" aria-label="오늘의 한동훈">
@@ -651,7 +674,11 @@ $("#shareBtn").addEventListener("click", async () => {
 
 // 앱으로 받기: 안드로이드는 설치 창을 바로 띄우고, 아이폰은 방법을 알려 줌
 (() => {
-  const box = $("#installBox"), how = $("#installHow"), btn = $("#installBtn");
+  const box = $("#installBox"), how = $("#installHow"), btn = $("#installBtn"), sub = $("#installSub");
+  // 11/13 맨 위 띠: 짧은 말은 이름 아래(sub), 긴 방법 안내는 띠 안에 펼침(how)
+  const say = s => { how.textContent = s; how.hidden = false; };
+  const ga = (n, p) => { try { gtag("event", n, p || {}); } catch (e) {} };
+  btn.addEventListener("click", () => ga("install_click", { label: btn.textContent }));
   const ua = navigator.userAgent;
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(() => {});
@@ -669,12 +696,13 @@ $("#shareBtn").addEventListener("click", async () => {
       const chrome = /KAKAOTALK/i.test(ua)
         ? "kakaotalk://web/openExternal?url=" + encodeURIComponent(url)
         : "intent://" + url.replace(/^https?:\/\//, "") + "#Intent;scheme=https;package=com.android.chrome;end";
-      how.textContent = "지금 다른 앱 안에서 열려 있어 앱으로 받을 수 없어요. 아래 버튼을 눌러 크롬에서 연 뒤 ‘앱으로 받기’를 눌러 주세요.";
+      sub.textContent = "크롬에서 열면 앱으로 받을 수 있어요";
       btn.textContent = "크롬에서 열기";
       btn.addEventListener("click", () => { location.href = chrome; });
     } else {
-      btn.hidden = true;
-      how.textContent = "지금 다른 앱 안에서 열려 있어요. 오른쪽 아래(또는 위) ⋯ 메뉴에서 ‘다른 브라우저로 열기’(사파리)를 고른 뒤, 공유 버튼 ⬆ 에서 ‘홈 화면에 추가’를 눌러 주세요.";
+      sub.textContent = "사파리에서 열면 앱으로 받을 수 있어요";
+      btn.textContent = "방법 보기";
+      btn.addEventListener("click", () => { if (!how.hidden) { how.hidden = true; return; } say("오른쪽 아래(또는 위) ⋯ 메뉴에서 ‘다른 브라우저로 열기’(사파리)를 고른 뒤, 공유 버튼 ⬆ 에서 ‘홈 화면에 추가’를 눌러 주세요."); });
     }
     return;
   }
@@ -685,16 +713,15 @@ $("#shareBtn").addEventListener("click", async () => {
   const isChrome = /Chrome\/\d/.test(ua) && !/SamsungBrowser|EdgA|OPR\/|Whale|NAVER|Firefox|YaBrowser|MiuiBrowser|HeyTap|UCBrowser/i.test(ua);
   const toChrome = "intent://" + location.href.split("#")[0].replace(/^https?:\/\//, "") + "#Intent;scheme=https;package=com.android.chrome;end";
   let prompt = null;
-  const ready = () => { btn.hidden = false; btn.textContent = "앱으로 받기"; how.textContent = "한 번만 해 두면 아이콘을 눌러 바로 열려요."; };
+  const ready = () => { btn.hidden = false; btn.textContent = "앱으로 받기"; how.hidden = true; };
   window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); prompt = e; box.hidden = false; ready(); });
   if (ios) {
-    box.hidden = false; btn.hidden = true;
-    how.textContent = "사파리 아래쪽 공유 버튼(네모에 화살표 ↑)을 누르고 ‘홈 화면에 추가’를 누르세요.";
+    box.hidden = false; btn.textContent = "방법 보기";
   } else if (android) {
     if (!isChrome) {
       box.hidden = false;
       btn.textContent = "크롬에서 열기";
-      how.textContent = "앱으로 받기는 크롬에서 잘 돼요. 아래 버튼을 눌러 크롬에서 연 뒤 ‘앱으로 받기’를 눌러 주세요.";
+      sub.textContent = "크롬에서 열면 앱으로 받을 수 있어요";
     } else {
       // 크롬은 이미 깔려 있으면 설치 신호를 안 보냄 → 바로 띄우지 않고 4초 기다린 뒤,
       // 설치 신호도 없고 깔린 앱도 안 보일 때만 안내를 띄움
@@ -711,26 +738,28 @@ $("#shareBtn").addEventListener("click", async () => {
     }
   }
   btn.addEventListener("click", async () => {
+    if (ios) { if (!how.hidden) { how.hidden = true; return; } say("사파리 아래쪽 공유 버튼(네모에 화살표 ↑)을 누르고 ‘홈 화면에 추가’를 누르세요."); return; }
     // 페이지가 막 열렸을 땐 크롬 설치 신호가 조금 늦게 옴 → 3초까지 기다려 봄
     if (!prompt && isChrome) {
-      how.textContent = "잠시만요, 설치 창을 부르는 중이에요…";
+      say("잠시만요, 설치 창을 부르는 중이에요…");
       for (let i = 0; i < 15 && !prompt; i++) await new Promise(r => setTimeout(r, 200));
     }
     if (prompt) {
       prompt.prompt();
       const r = await prompt.userChoice; prompt = null;
+      ga("install_result", { outcome: r ? r.outcome : "" });
       if (r && r.outcome === "accepted") box.hidden = true;
-      else how.textContent = "설치를 취소하셨어요. 다시 하려면 오른쪽 위 점 세 개(⋮) 메뉴에서 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 누르세요.";
+      else say("설치를 취소하셨어요. 다시 하려면 오른쪽 위 점 세 개(⋮) 메뉴에서 ‘홈 화면에 추가’ 또는 ‘앱 설치’를 누르세요.");
       return;
     }
     if (android && !isChrome) { location.href = toChrome; return; }
     // 크롬인데 설치 창이 안 뜨는 경우: 이미 깔려 있거나, 전에 설치 창을 닫아서 크롬이 한동안 안 띄우는 것
     // 앱을 막 지운 직후엔 크롬이 한동안 설치 신호를 안 보냄 → 메뉴로 설치하는 법을 크게 보여 줌
     how.style.fontWeight = "700";
-    how.textContent = "① 오른쪽 위 점 세 개(⋮)를 누르세요. ② ‘홈 화면에 추가’ 또는 ‘앱 설치’를 누르세요. ③ ‘설치’를 누르세요. 메뉴에 ‘앱 열기’가 보이면 이미 깔려 있는 거예요. 바탕화면에서 ‘한동훈 데일리’ 아이콘을 찾아 주세요.";
+    say("① 오른쪽 위 점 세 개(⋮)를 누르세요. ② ‘홈 화면에 추가’ 또는 ‘앱 설치’를 누르세요. ③ ‘설치’를 누르세요. 메뉴에 ‘앱 열기’가 보이면 이미 깔려 있는 거예요. 바탕화면에서 ‘한동훈 데일리’ 아이콘을 찾아 주세요.");
   });
   // 닫기는 7일 동안만 숨김(예전엔 영영 숨겨져서 다시 받을 길이 없었음)
-  $("#installClose").addEventListener("click", () => { box.hidden = true; store.set("hdh-install-closed", String(Date.now())); });
+  $("#installClose").addEventListener("click", () => { box.hidden = true; ga("install_close"); store.set("hdh-install-closed", String(Date.now())); });
   window.addEventListener("appinstalled", () => { box.hidden = true; store.set("hdh-installed", "1"); });
 })();
 </script>
