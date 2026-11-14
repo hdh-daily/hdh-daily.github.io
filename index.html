@@ -238,6 +238,12 @@ details.more summary { min-height: 48px; font-size: 0.9em; }
 .ab-go:active, .ab-x:active { transform: scale(.96); }
 .ab-help { max-width: 640px; margin: 10px auto 0; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.12); font-size: 15px; line-height: 1.55; }
 .ab-help[hidden] { display: none; }
+/* 11/14 점검 모드 칸(?debug=1 일 때만) */
+.dbg { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9999; background: #111; color: #E8E8E8; font: 12px/1.45 ui-monospace, Menlo, monospace; border-top: 3px solid #E5484D; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.dbg-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; }
+.dbg-bar b { flex: 1; color: #FF8A8F; font-size: 13px; }
+.dbg-bar button { background: #333; color: #fff; border: 0; border-radius: 6px; font: inherit; font-size: 13px; min-height: 36px; padding: 0 12px; }
+.dbg pre { margin: 0; padding: 0 10px 10px; max-height: 38vh; overflow: auto; white-space: pre-wrap; word-break: break-all; }
 /* 11/14 아이폰 순서 안내: 번호 목록, 주소 복사 단추 */
 .ab-help b.ab-h { display: block; font-size: 15.5px; margin-bottom: 4px; }
 .ab-help ol { margin: 4px 0 0; padding-left: 22px; }
@@ -261,6 +267,43 @@ document.addEventListener('click', function (e) {
   var t = (a.textContent || '').trim(), k = /직접 듣기/.test(t) ? 'video' : /원문/.test(t) ? 'source' : a.closest('[aria-label="더 둘러보기"]') ? 'browse' : 'other';
   gtag('event', 'link_click', { kind: k, label: t.slice(0, 40), link_domain: a.hostname });
 }, true);
+// 11/14 점검 모드: 주소 끝 ?debug=1 이면 켜지고(이 브라우저에 기억), ?debug=0 이면 꺼짐. 공기계 아이폰 시험용, 일반 사용자에겐 안 보임
+(function () {
+  var VER = '261114 점검1', on = false, q = null;
+  try { q = new URLSearchParams(location.search).get('debug'); } catch (e) {}
+  try { if (q === '1') localStorage.setItem('hdh-debug', '1'); else if (q === '0') localStorage.removeItem('hdh-debug'); on = q === '1' || localStorage.getItem('hdh-debug') === '1'; } catch (e) { on = q === '1'; }
+  var lines = [], t0 = Date.now(), pre = null;
+  window.dbg = function () { if (!on) return; lines.push(((Date.now() - t0) / 1000).toFixed(1) + '초 ' + [].slice.call(arguments).join(' ')); if (pre) pre.textContent = lines.join('\n'); };
+  window.dbg.on = on;
+  if (!on) return;
+  var ua = navigator.userAgent, m = ua.match(/OS (\d+)_(\d+)/);
+  dbg('화면판', VER);
+  dbg('주소', location.href);
+  dbg('UA', ua);
+  dbg('iOS', m ? m[1] + '.' + m[2] : '아님', '| 화면', innerWidth + 'x' + innerHeight, 'dpr', devicePixelRatio);
+  dbg('홈 화면 앱으로 열림', String(matchMedia('(display-mode: standalone)').matches || !!navigator.standalone));
+  addEventListener('error', function (e) { dbg('오류', e.message, (e.filename || '').split('/').pop() + ':' + e.lineno); });
+  addEventListener('unhandledrejection', function (e) { dbg('오류(promise)', String(e.reason)); });
+  document.addEventListener('visibilitychange', function () { dbg('화면 상태', document.visibilityState); });
+  addEventListener('pagehide', function () { dbg('pagehide'); });
+  addEventListener('pageshow', function (e) { dbg('pageshow', e.persisted ? '(뒤로 와서 다시 보임)' : ''); });
+  addEventListener('DOMContentLoaded', function () {
+    var box = document.createElement('div'); box.className = 'dbg';
+    var bar = document.createElement('div'); bar.className = 'dbg-bar';
+    var title = document.createElement('b'); title.textContent = '점검 모드';
+    var mk = function (t, f) { var b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.addEventListener('click', f); return b; };
+    var fold = mk('접기', function () { pre.hidden = !pre.hidden; fold.textContent = pre.hidden ? '펼치기' : '접기'; });
+    var copy = mk('복사', function () {
+      var t = lines.join('\n');
+      var ok = function () { copy.textContent = '복사됨'; setTimeout(function () { copy.textContent = '복사'; }, 1500); };
+      try { navigator.clipboard.writeText(t).then(ok, function () { alert(t); }); } catch (e) { alert(t); }
+    });
+    var off = mk('끄기', function () { try { localStorage.removeItem('hdh-debug'); } catch (e) {} location.href = location.pathname + '?debug=0'; });
+    pre = document.createElement('pre'); pre.textContent = lines.join('\n');
+    bar.append(title, fold, copy, off); box.append(bar, pre); document.body.append(box);
+    document.body.style.paddingBottom = '46vh';
+  });
+})();
 </script>
 </head>
 <body>
@@ -715,13 +758,14 @@ $("#shareBtn").addEventListener("click", async () => {
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).catch(() => {});
   // 앱으로 열렸으면 '깔았음'을 기억해 둠(안드로이드는 크롬과 앱이 저장소를 같이 써서, 크롬으로 열어도 안내가 안 뜸)
-  if (standalone) { store.set("hdh-installed", "1"); return; }
+  if (standalone) { dbg("판정: 홈 화면 앱 → 설치 띠 안 띄움"); store.set("hdh-installed", "1"); return; }
   const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const android = /Android/i.test(ua);
   // 카카오톡, 네이버, 밴드, 인스타그램 같은 앱 안에서 열면 설치가 안 됨 → 크롬으로 보내는 버튼
   // 아이폰은 앱 안 화면에 'Safari/' 표시가 없음 → 이름을 모르는 앱 안 화면도 잡음(크롬, 파이어폭스, 엣지는 제외)
   const inApp = /KAKAOTALK|NAVER\(inapp|BAND\/|Instagram|FBAN|FBAV|Line\/|DaumApps|; wv\)/i.test(ua)
     || (ios && !/Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua));
+  dbg("판정: 아이폰", ios, "| 안드로이드", android, "| 앱 안 화면", inApp, "| 설치 기억", store.get("hdh-installed") || "-", "| 닫은 때", store.get("hdh-install-closed") || "-");
   if (inApp) {
     const url = location.href.split("#")[0];
     box.hidden = false;
@@ -749,19 +793,21 @@ $("#shareBtn").addEventListener("click", async () => {
       btn.textContent = "사파리로 열기";
       btn.addEventListener("click", () => {
         ga("open_safari", { app });
+        dbg("사파리로 열기 누름:", app, "→", target);
         let left = false;
         const onHide = () => { if (document.visibilityState === "hidden") left = true; };
         document.addEventListener("visibilitychange", onHide);
         location.href = target;
         // 1.5초 동안 화면이 한 번도 안 가려졌으면 사파리가 안 열린 것 → 손으로 옮기는 순서를 보여 줌
-        setTimeout(() => { document.removeEventListener("visibilitychange", onHide); if (!left) manual(); }, 1500);
+        setTimeout(() => { document.removeEventListener("visibilitychange", onHide); dbg("1.5초 뒤:", left ? "화면이 한 번 가려짐(다른 앱이 열린 듯)" : "그대로임 → 손 안내 띄움"); if (!left) manual(); }, 1500);
       });
     }
     return;
   }
-  if (store.get("hdh-installed") === "1") return;
+  if (store.get("hdh-installed") === "1") { dbg("설치 기억 있음 → 띠 안 띄움"); return; }
   const closedAt = Number(store.get("hdh-install-closed") || 0);
-  if (closedAt > 1 && Date.now() - closedAt < 7 * 864e5) return;
+  // 점검 모드에선 '닫기' 7일 숨김을 무시(시험하다 닫아도 다시 보이게)
+  if (closedAt > 1 && Date.now() - closedAt < 7 * 864e5 && !window.dbg.on) return;
   // 안드로이드인데 크롬이 아닌 브라우저(삼성 인터넷, 웨일 등)면 먼저 크롬으로 보냄. 설치 신호가 오면 바로 '앱으로 받기'로 바뀜
   const isChrome = /Chrome\/\d/.test(ua) && !/SamsungBrowser|EdgA|OPR\/|Whale|NAVER|Firefox|YaBrowser|MiuiBrowser|HeyTap|UCBrowser/i.test(ua);
   const toChrome = "intent://" + location.href.split("#")[0].replace(/^https?:\/\//, "") + "#Intent;scheme=https;package=com.android.chrome;end";
@@ -800,6 +846,7 @@ $("#shareBtn").addEventListener("click", async () => {
       ]);
       else if (/FxiOS|EdgiOS/.test(ua)) steps("사파리에서 받아 주세요", ["이 브라우저에서는 앱으로 받기가 안 될 수 있어요. 아래 ‘주소 복사’를 누르세요.", "사파리를 열고 주소창을 길게 눌러 ‘붙여넣기 및 이동’을 누르세요.", "사파리에서 맨 위 ‘방법 보기’를 누르고 순서대로 하세요."], true);
       else steps("사파리에서 앱으로 받기", SAFARI_STEPS);
+      dbg("방법 보기 누름:", /CriOS/.test(ua) ? "크롬 안내" : /FxiOS|EdgiOS/.test(ua) ? "다른 브라우저 안내" : "사파리 안내");
       return;
     }
     // 페이지가 막 열렸을 땐 크롬 설치 신호가 조금 늦게 옴 → 3초까지 기다려 봄
