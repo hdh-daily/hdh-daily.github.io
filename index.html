@@ -238,6 +238,12 @@ details.more summary { min-height: 48px; font-size: 0.9em; }
 .ab-go:active, .ab-x:active { transform: scale(.96); }
 .ab-help { max-width: 640px; margin: 10px auto 0; padding: 10px 12px; border-radius: 10px; background: rgba(255,255,255,.12); font-size: 15px; line-height: 1.55; }
 .ab-help[hidden] { display: none; }
+/* 11/14 아이폰 순서 안내: 번호 목록, 주소 복사 단추 */
+.ab-help b.ab-h { display: block; font-size: 15.5px; margin-bottom: 4px; }
+.ab-help ol { margin: 4px 0 0; padding-left: 22px; }
+.ab-help li { margin: 6px 0; }
+.ab-help .ab-copy { margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ab-help .ab-copy button { border: 0; border-radius: 999px; background: #FFFFFF; color: #1C3B6E; font: inherit; font-weight: 700; font-size: 14px; min-height: 40px; padding: 0 14px; cursor: pointer; }
 @media (max-width: 350px) { .ab-ic { width: 40px; height: 40px; } .ab-tx span { display: none; } }
 @media (prefers-reduced-motion: no-preference) { .appbar { animation: abIn .35s ease-out; } @keyframes abIn { from { opacity: 0; transform: translateY(-12px); } } }
 </style>
@@ -267,7 +273,7 @@ document.addEventListener('click', function (e) {
     <button type="button" class="ab-go" id="installBtn">앱으로 받기</button>
     <button type="button" class="ab-x" id="installClose">닫기</button>
   </div>
-  <p class="ab-help" id="installHow" hidden></p>
+  <div class="ab-help" id="installHow" hidden></div>
 </div>
 
 <div class="wrap">
@@ -677,6 +683,32 @@ $("#shareBtn").addEventListener("click", async () => {
   const box = $("#installBox"), how = $("#installHow"), btn = $("#installBtn"), sub = $("#installSub");
   // 11/13 맨 위 띠: 짧은 말은 이름 아래(sub), 긴 방법 안내는 띠 안에 펼침(how)
   const say = s => { how.textContent = s; how.hidden = false; };
+  // 11/14 사용자: 아이폰에서 사파리로 여는 법이 자세하지 않고 실제로 안 열림 → 번호 순서 안내 + 주소 복사
+  const steps = (title, list, copy) => {
+    how.textContent = "";
+    if (title) { const h = document.createElement("b"); h.className = "ab-h"; h.textContent = title; how.append(h); }
+    const ol = document.createElement("ol");
+    list.forEach(t => { const li = document.createElement("li"); li.textContent = t; ol.append(li); });
+    how.append(ol);
+    if (copy) {
+      const row = document.createElement("div"); row.className = "ab-copy";
+      const cb = document.createElement("button"); cb.type = "button"; cb.textContent = "주소 복사";
+      const msg = document.createElement("span"); msg.textContent = "그래도 안 되면 주소를 복사해 사파리 주소창에 붙여 넣으세요.";
+      cb.addEventListener("click", () => {
+        const u = location.href.split("#")[0];
+        const done = () => { msg.textContent = "복사했어요. 사파리를 열고 주소창을 길게 눌러 ‘붙여넣기 및 이동’을 누르세요."; ga("install_copy"); };
+        const old = () => { const i = document.createElement("textarea"); i.value = u; i.setAttribute("readonly", ""); i.style.position = "fixed"; i.style.opacity = "0"; document.body.append(i); i.select(); i.setSelectionRange(0, u.length); let ok = false; try { ok = document.execCommand("copy"); } catch (e) {} i.remove(); ok ? done() : (msg.textContent = "주소: " + u); };
+        try { navigator.clipboard.writeText(u).then(done, old); } catch (e) { old(); }
+      });
+      row.append(cb, msg); how.append(row);
+    }
+    how.hidden = false;
+  };
+  const SAFARI_STEPS = [
+    "화면 아래 가운데 공유 버튼(네모에 위 화살표 ⬆)을 누르세요. 공유 버튼이 안 보이면 오른쪽 아래 점 세 개(⋯)를 누른 뒤 ‘공유’를 누르세요.",
+    "나온 목록을 위로 밀어 올려 ‘홈 화면에 추가’를 누르세요. 안 보이면 맨 아래 ‘더 보기’ 안에 있어요.",
+    "오른쪽 위 ‘추가’를 누르세요. 홈 화면에 ‘한동훈 데일리’ 아이콘이 생겨요. 다음부터 그 아이콘으로 여세요."
+  ];
   const ga = (n, p) => { try { gtag("event", n, p || {}); } catch (e) {} };
   btn.addEventListener("click", () => ga("install_click", { label: btn.textContent }));
   const ua = navigator.userAgent;
@@ -687,7 +719,9 @@ $("#shareBtn").addEventListener("click", async () => {
   const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const android = /Android/i.test(ua);
   // 카카오톡, 네이버, 밴드, 인스타그램 같은 앱 안에서 열면 설치가 안 됨 → 크롬으로 보내는 버튼
-  const inApp = /KAKAOTALK|NAVER\(inapp|BAND\/|Instagram|FBAN|FBAV|Line\/|DaumApps|; wv\)/i.test(ua);
+  // 아이폰은 앱 안 화면에 'Safari/' 표시가 없음 → 이름을 모르는 앱 안 화면도 잡음(크롬, 파이어폭스, 엣지는 제외)
+  const inApp = /KAKAOTALK|NAVER\(inapp|BAND\/|Instagram|FBAN|FBAV|Line\/|DaumApps|; wv\)/i.test(ua)
+    || (ios && !/Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua));
   if (inApp) {
     const url = location.href.split("#")[0];
     box.hidden = false;
@@ -700,9 +734,28 @@ $("#shareBtn").addEventListener("click", async () => {
       btn.textContent = "크롬에서 열기";
       btn.addEventListener("click", () => { location.href = chrome; });
     } else {
-      sub.textContent = "사파리에서 열면 앱으로 받을 수 있어요";
-      btn.textContent = "방법 보기";
-      btn.addEventListener("click", () => { if (!how.hidden) { how.hidden = true; return; } say("오른쪽 아래(또는 위) ⋯ 메뉴에서 ‘다른 브라우저로 열기’(사파리)를 고른 뒤, 공유 버튼 ⬆ 에서 ‘홈 화면에 추가’를 눌러 주세요."); });
+      // 11/14: 단추를 누르면 사파리를 직접 열어 봄. 카카오톡은 자체 주소, 라인은 주소 뒤 표시, 나머지는 iOS 17부터 되는 x-safari-https
+      const app = /KAKAOTALK/i.test(ua) ? "카카오톡" : /NAVER\(inapp/i.test(ua) ? "네이버 앱" : /BAND\//.test(ua) ? "밴드"
+        : /Instagram/.test(ua) ? "인스타그램" : /FBAN|FBAV/.test(ua) ? "페이스북" : /Line\//.test(ua) ? "라인" : /DaumApps/.test(ua) ? "다음 앱" : "이 앱";
+      const target = /KAKAOTALK/i.test(ua) ? "kakaotalk://web/openExternal?url=" + encodeURIComponent(url)
+        : /Line\//.test(ua) ? url + (url.indexOf("?") > -1 ? "&" : "?") + "openExternalBrowser=1"
+        : "x-safari-" + url;
+      const manual = () => steps(app + " 안에서는 앱으로 받을 수 없어요. 사파리로 옮겨 주세요.", [
+        app + " 화면 맨 아래 오른쪽(또는 맨 위 오른쪽)에 있는 점 세 개(⋯)나 공유 버튼(⬆)을 누르세요.",
+        "‘Safari로 열기’ 또는 ‘다른 브라우저로 열기’, ‘외부 브라우저로 열기’ 중 보이는 것을 누르세요.",
+        "사파리가 열리면 맨 위 남색 띠의 ‘방법 보기’를 누르고 순서대로 하세요."
+      ], true);
+      sub.textContent = "사파리에서 받을 수 있어요";
+      btn.textContent = "사파리로 열기";
+      btn.addEventListener("click", () => {
+        ga("open_safari", { app });
+        let left = false;
+        const onHide = () => { if (document.visibilityState === "hidden") left = true; };
+        document.addEventListener("visibilitychange", onHide);
+        location.href = target;
+        // 1.5초 동안 화면이 한 번도 안 가려졌으면 사파리가 안 열린 것 → 손으로 옮기는 순서를 보여 줌
+        setTimeout(() => { document.removeEventListener("visibilitychange", onHide); if (!left) manual(); }, 1500);
+      });
     }
     return;
   }
@@ -738,7 +791,17 @@ $("#shareBtn").addEventListener("click", async () => {
     }
   }
   btn.addEventListener("click", async () => {
-    if (ios) { if (!how.hidden) { how.hidden = true; return; } say("사파리 아래쪽 공유 버튼(네모에 화살표 ↑)을 누르고 ‘홈 화면에 추가’를 누르세요."); return; }
+    if (ios) {
+      if (!how.hidden) { how.hidden = true; return; }
+      if (/CriOS/.test(ua)) steps("크롬에서 앱으로 받기", [
+        "주소창 오른쪽 공유 버튼(네모에 위 화살표 ⬆)을 누르세요.",
+        "목록을 위로 밀어 올려 ‘홈 화면에 추가’를 누르세요.",
+        "오른쪽 위 ‘추가’를 누르세요. 홈 화면에 ‘한동훈 데일리’ 아이콘이 생겨요."
+      ]);
+      else if (/FxiOS|EdgiOS/.test(ua)) steps("사파리에서 받아 주세요", ["이 브라우저에서는 앱으로 받기가 안 될 수 있어요. 아래 ‘주소 복사’를 누르세요.", "사파리를 열고 주소창을 길게 눌러 ‘붙여넣기 및 이동’을 누르세요.", "사파리에서 맨 위 ‘방법 보기’를 누르고 순서대로 하세요."], true);
+      else steps("사파리에서 앱으로 받기", SAFARI_STEPS);
+      return;
+    }
     // 페이지가 막 열렸을 땐 크롬 설치 신호가 조금 늦게 옴 → 3초까지 기다려 봄
     if (!prompt && isChrome) {
       say("잠시만요, 설치 창을 부르는 중이에요…");
