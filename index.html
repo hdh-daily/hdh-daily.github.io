@@ -398,7 +398,7 @@ const DEFAULT_PHOTOS = [
 const heroImg = document.getElementById('heroPhoto');
 const DEFAULT_SRC = heroImg.src;
 const esc = (t) => String(t || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-// 11/11 사용자 지시: 옛 사진을 오늘 사진처럼 보이면 안 됨. 최근 사진(그 호 날짜 기준 2일 안)이 없으면 사진 칸을 아예 숨김
+// 11/11 사용자 지시: 옛 사진을 오늘 사진처럼 보이면 안 됨(캡션에 찍은 날 표시). 11/16부터 그 호 날짜 기준 7일 안 사진이 없으면 사진 칸을 숨김
 const heroSec = heroImg.closest('.hero');
 function setDefaultPhoto() {
   heroImg.onerror = null;
@@ -421,7 +421,8 @@ function photoFor(idx) {
     const p = EDITIONS[j] && EDITIONS[j].photo;
     if (!ok(p)) continue;
     const days = Math.round((base - shotDate(p, EDITIONS[j].date)) / 864e5);
-    if (days >= 0 && days <= 2) return Object.assign({ _days: days }, p);
+    // 11/16 사용자 선택: 그날 사진이 없으면 7일 안의 가장 최근 사진을 찍은 날 캡션과 함께 보여 줌
+    if (days >= 0 && days <= 7) return Object.assign({ _days: days }, p);
     return null; // 가장 최근 사진도 오래됐으면 그 전 것은 더 오래됨
   }
   return null;
